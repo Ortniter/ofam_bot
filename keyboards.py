@@ -149,4 +149,3 @@ def choose_keyboard(query):
         return mapping_keyboards[query]
     except KeyError:
         return main_keyboard
-

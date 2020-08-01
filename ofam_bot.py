@@ -1,5 +1,6 @@
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
-from telegram import InlineKeyboardMarkup, InputMediaPhoto, ParseMode
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, InlineQueryHandler
+from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineKeyboardButton, InlineKeyboardMarkup, \
+    InputMediaPhoto, ParseMode
 from keyboards import choose_keyboard
 from sql_adapters.sqlite import SQLiteAdapter
 import keyring
@@ -18,6 +19,37 @@ def start(update, context):
                            photo='https://static.tildacdn.com/tild6232-6236-4663-b934-356533636337/Frame.jpg',
                            caption='OFAM_bot Меню:',
                            reply_markup=reply_markup)
+
+
+def inline_shop(update, context):
+    query = update.inline_query.query
+    if query == 'ofam_shop':
+        results = list()
+        db = SQLiteAdapter('ofam_bot.sqlite')
+        shop_items = db.select_all('shop_items')
+        for item in shop_items[1:25]:
+            name, price, description, link, photo = item
+
+            keyboard = [[InlineKeyboardButton("Меню 🖼", callback_data='send_menu')],
+                        [InlineKeyboardButton("Нравится товар 🧐", callback_data='authors_events')],
+                        [InlineKeyboardButton("Посмотреть на сайте 🧐", url=link)]]
+
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            results.append(
+                InlineQueryResultArticle(
+                    id=name.upper(),
+                    title=name,
+                    thumb_url=photo,
+                    description=f'{price}UAH',
+                    reply_markup=reply_markup,
+                    input_message_content=InputTextMessageContent(
+                        message_text=f'{description}\nPrice: <a href="{photo}">{price} UAH</a>',
+                        parse_mode=ParseMode.HTML,
+                    )
+                )
+            )
+        context.bot.answer_inline_query(update.inline_query.id, results)
 
 
 def button(update, context):
@@ -57,7 +89,9 @@ def button(update, context):
 
 
 start_handler = CommandHandler('start', start)
+inline_shop_handler = InlineQueryHandler(inline_shop)
 updater.dispatcher.add_handler(CallbackQueryHandler(button))
 dispatcher.add_handler(start_handler)
+dispatcher.add_handler(inline_shop_handler)
 
 updater.start_polling()
